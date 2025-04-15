@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BITopia - Mapa Gigante</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+  <style>
+    body { margin: 0; }
+    canvas { display: block; margin: auto; }
+  </style>
+</head>
+<body>
+<script>
+  const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    backgroundColor: '#a0d0ff',
+    physics: {
+      default: 'arcade',
+      arcade: { debug: false }
+    },
+    scene: {
+      preload,
+      create,
+      update
+    },
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoCenter: Phaser.Scale.CENTER_BOTH
+    },
+  };
+
+  const game = new Phaser.Game(config);
+
+  let map;
+  let camera;
+
+  function preload() {
+    this.load.image('tile', 'https://labs.phaser.io/assets/sprites/platform.png');  // Suelo base
+  }
+
+  function create() {
+    // Crear el mapa gigante de 4000x4000 píxeles
+    map = this.add.tilemap();
+    const tileset = map.addTilesetImage('tile');
+    
+    // Añadir el mapa a la escena
+    map.createLayer(0, tileset, 0, 0).setScale(2);
+
+    // Configurar la cámara
+    camera = this.cameras.main;
+    camera.setBounds(0, 0, 4000, 4000);  // Limitar el área visible
+
+    // Control de desplazamiento con las teclas (WASD o Flechas)
+    this.input.keyboard.on('keydown-W', () => camera.scrollY -= 10);
+    this.input.keyboard.on('keydown-S', () => camera.scrollY += 10);
+    this.input.keyboard.on('keydown-A', () => camera.scrollX -= 10);
+    this.input.keyboard.on('keydown-D', () => camera.scrollX += 10);
+
+    // Control de zoom con la rueda del mouse
+    this.input.mouse.disableContextMenu();
+    this.input.on('wheel', function(pointer, gameObjects, deltaX, deltaY) {
+      const zoomSpeed = 0.1;
+      if (deltaY < 0) {
+        camera.zoom = Math.min(camera.zoom + zoomSpeed, 2);  // Limitar zoom máximo
+      } else {
+        camera.zoom = Math.max(camera.zoom - zoomSpeed, 0.5);  // Limitar zoom mínimo
+      }
+    });
+  }
+
+  function update() {
+    // Aquí podemos agregar el código de IA de las criaturas o eventos
+  }
+
+</script>
+</body>
+</html>
