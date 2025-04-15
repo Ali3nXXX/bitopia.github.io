@@ -40,6 +40,14 @@
   let creaturesGroup;
   let foodGroup;  // Grupo para la comida
 
+  const creatureSpeed = 50;
+  const energyThreshold = 20; // Energía bajo la cual buscan descansar
+  const foodEnergy = 30; // Energía recuperada por comida
+  const energyFull = 100; // Energía máxima
+
+  // Intervalo de actualización para encontrar comida/casas
+  const creatureUpdateInterval = 2000; // milisegundos (cada 2 segundos)
+
   function preload() {
     this.load.image('tile', 'https://labs.phaser.io/assets/sprites/platform.png');
     this.load.image('house', 'https://labs.phaser.io/assets/sprites/wood.png');
@@ -91,10 +99,8 @@
       let y = Phaser.Math.Between(100, 4000);
       let creature = creaturesGroup.create(x, y, 'creature');
       creature.setOrigin(0.5, 0.5);
-      creature.speed = 50;
-      creature.setData('target', null);
       creature.setData('state', 'idle');  // Estado inicial: inactivo
-      creature.energy = 100;  // Energía inicial
+      creature.energy = energyFull;  // Energía inicial
     }
 
     // Crear comida en posiciones aleatorias
@@ -103,12 +109,23 @@
       let y = Phaser.Math.Between(100, 4000);
       foodGroup.create(x, y, 'food');
     }
+
+    // Ejecutar la lógica de la criatura en intervalos regulares
+    this.time.addEvent({
+      delay: creatureUpdateInterval,
+      callback: updateCreatures,
+      callbackScope: this,
+      loop: true
+    });
   }
 
   function update() {
+    // Movimiento de las criaturas se maneja dentro de la función `updateCreatures()`
+  }
+
+  function updateCreatures() {
     creaturesGroup.getChildren().forEach(creature => {
-      // Verificar si la criatura necesita comer o descansar
-      if (creature.energy < 20) {
+      if (creature.energy < energyThreshold) {
         creature.setData('state', 'resting');  // Necesita descansar
       } else if (creature.getData('state') === 'idle') {
         // Buscar comida si está inactiva
@@ -123,19 +140,19 @@
       let target = creature.getData('target');
       if (target) {
         let angle = Phaser.Math.Angle.Between(creature.x, creature.y, target.x, target.y);
-        creature.setVelocityX(creature.speed * Math.cos(angle));
-        creature.setVelocityY(creature.speed * Math.sin(angle));
+        creature.setVelocityX(creatureSpeed * Math.cos(angle));
+        creature.setVelocityY(creatureSpeed * Math.sin(angle));
 
         // Si la criatura llega al objetivo
         if (Phaser.Math.Distance.Between(creature.x, creature.y, target.x, target.y) < 10) {
           if (target.texture.key === 'food') {
             // Comer
-            creature.energy = Math.min(creature.energy + 30, 100);
+            creature.energy = Math.min(creature.energy + foodEnergy, energyFull);
             foodGroup.remove(target, true);  // Eliminar comida
             creature.setData('state', 'idle');  // Volver a estado inactivo
           } else if (target.texture.key === 'house') {
             // Descansar en la casa
-            creature.energy = 100;  // Recargar energía
+            creature.energy = energyFull;  // Recargar energía
             creature.setData('state', 'idle');  // Volver a estado inactivo
           }
           creature.setData('target', null);  // Resetear objetivo
@@ -143,7 +160,7 @@
       }
 
       // Si la criatura tiene poca energía y no hay comida cerca, buscar una casa
-      if (creature.energy < 20 && creature.getData('state') !== 'resting') {
+      if (creature.energy < energyThreshold && creature.getData('state') !== 'resting') {
         let nearestHouse = findNearestHouse(creature);
         if (nearestHouse) {
           creature.setData('target', nearestHouse);
