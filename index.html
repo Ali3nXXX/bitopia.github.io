@@ -35,13 +35,14 @@
 
   let map;
   let camera;
-  let selectedBuilding = 'house';  // Edificio seleccionado (por defecto, una casa)
-  let buildingsGroup;  // Grupo para los edificios
+  let selectedBuilding = 'house';
+  let buildingsGroup;
+  let creaturesGroup;  // Grupo para las criaturas
 
   function preload() {
-    // Cargar imágenes para el mapa y edificios
     this.load.image('tile', 'https://labs.phaser.io/assets/sprites/platform.png');  // Suelo base
-    this.load.image('house', 'https://labs.phaser.io/assets/sprites/wood.png'); // Imagen de la casa
+    this.load.image('house', 'https://labs.phaser.io/assets/sprites/wood.png');  // Imagen de la casa
+    this.load.image('creature', 'https://labs.phaser.io/assets/sprites/bee.png');  // Imagen para la criatura
   }
 
   function create() {
@@ -50,42 +51,79 @@
     const tileset = map.addTilesetImage('tile');
     map.createLayer(0, tileset, 0, 0).setScale(2);
 
-    // Configurar la cámara
     camera = this.cameras.main;
-    camera.setBounds(0, 0, 4000, 4000);  // Limitar el área visible
+    camera.setBounds(0, 0, 4000, 4000);
 
-    // Grupo para los edificios
     buildingsGroup = this.physics.add.group();
+    creaturesGroup = this.physics.add.group();
 
-    // Control de desplazamiento con las teclas (WASD o Flechas)
+    // Control de desplazamiento con las teclas
     this.input.keyboard.on('keydown-W', () => camera.scrollY -= 10);
     this.input.keyboard.on('keydown-S', () => camera.scrollY += 10);
     this.input.keyboard.on('keydown-A', () => camera.scrollX -= 10);
     this.input.keyboard.on('keydown-D', () => camera.scrollX += 10);
 
-    // Control de zoom con la rueda del mouse
+    // Control de zoom
     this.input.mouse.disableContextMenu();
     this.input.on('wheel', function(pointer, gameObjects, deltaX, deltaY) {
       const zoomSpeed = 0.1;
       if (deltaY < 0) {
-        camera.zoom = Math.min(camera.zoom + zoomSpeed, 2);  // Limitar zoom máximo
+        camera.zoom = Math.min(camera.zoom + zoomSpeed, 2);
       } else {
-        camera.zoom = Math.max(camera.zoom - zoomSpeed, 0.5);  // Limitar zoom mínimo
+        camera.zoom = Math.max(camera.zoom - zoomSpeed, 0.5);
       }
     });
 
     // Control para construir edificios al hacer clic
     this.input.on('pointerdown', function(pointer) {
       if (selectedBuilding === 'house') {
-        // Colocar una casa en la posición donde el jugador hace clic
         let building = buildingsGroup.create(pointer.x + camera.scrollX, pointer.y + camera.scrollY, 'house');
         building.setOrigin(0.5, 0.5);
       }
     });
+
+    // Crear criaturas en posiciones aleatorias
+    for (let i = 0; i < 5; i++) {
+      let x = Phaser.Math.Between(100, 4000);
+      let y = Phaser.Math.Between(100, 4000);
+      let creature = creaturesGroup.create(x, y, 'creature');
+      creature.setOrigin(0.5, 0.5);
+      creature.speed = 50;  // Velocidad de movimiento
+      creature.setData('target', null);  // Objetivo inicial
+    }
   }
 
   function update() {
-    // Aquí podemos agregar el código de IA de las criaturas o eventos
+    creaturesGroup.getChildren().forEach(creature => {
+      if (creature.getData('target') === null) {
+        // Movimiento aleatorio de las criaturas
+        let randomDirection = Phaser.Math.Between(0, 3);
+        let targetX = creature.x;
+        let targetY = creature.y;
+
+        switch (randomDirection) {
+          case 0: targetX += 100; break;  // Mover a la derecha
+          case 1: targetX -= 100; break;  // Mover a la izquierda
+          case 2: targetY += 100; break;  // Mover abajo
+          case 3: targetY -= 100; break;  // Mover arriba
+        }
+
+        creature.setData('target', { x: targetX, y: targetY });
+      }
+
+      // Movimiento hacia el objetivo
+      let target = creature.getData('target');
+      if (target) {
+        let angle = Phaser.Math.Angle.Between(creature.x, creature.y, target.x, target.y);
+        creature.setVelocityX(creature.speed * Math.cos(angle));
+        creature.setVelocityY(creature.speed * Math.sin(angle));
+
+        // Si la criatura llega al objetivo, seleccionar un nuevo objetivo
+        if (Phaser.Math.Distance.Between(creature.x, creature.y, target.x, target.y) < 10) {
+          creature.setData('target', null);  // Resetear el objetivo
+        }
+      }
+    });
   }
 
 </script>
