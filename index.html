@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>BITopia - Mapa Gigante</title>
+  <title>BITopia - Interacciones</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
   <style>
     body { margin: 0; }
@@ -37,12 +37,14 @@
   let camera;
   let selectedBuilding = 'house';
   let buildingsGroup;
-  let creaturesGroup;  // Grupo para las criaturas
+  let creaturesGroup;
+  let foodGroup;  // Grupo para la comida
 
   function preload() {
-    this.load.image('tile', 'https://labs.phaser.io/assets/sprites/platform.png');  // Suelo base
-    this.load.image('house', 'https://labs.phaser.io/assets/sprites/wood.png');  // Imagen de la casa
-    this.load.image('creature', 'https://labs.phaser.io/assets/sprites/bee.png');  // Imagen para la criatura
+    this.load.image('tile', 'https://labs.phaser.io/assets/sprites/platform.png');
+    this.load.image('house', 'https://labs.phaser.io/assets/sprites/wood.png');
+    this.load.image('creature', 'https://labs.phaser.io/assets/sprites/bee.png');
+    this.load.image('food', 'https://labs.phaser.io/assets/sprites/fruit.png');  // Imagen para la comida
   }
 
   function create() {
@@ -56,6 +58,7 @@
 
     buildingsGroup = this.physics.add.group();
     creaturesGroup = this.physics.add.group();
+    foodGroup = this.physics.add.group();  // Grupo de comida
 
     // Control de desplazamiento con las teclas
     this.input.keyboard.on('keydown-W', () => camera.scrollY -= 10);
@@ -88,27 +91,32 @@
       let y = Phaser.Math.Between(100, 4000);
       let creature = creaturesGroup.create(x, y, 'creature');
       creature.setOrigin(0.5, 0.5);
-      creature.speed = 50;  // Velocidad de movimiento
-      creature.setData('target', null);  // Objetivo inicial
+      creature.speed = 50;
+      creature.setData('target', null);
+      creature.setData('state', 'idle');  // Estado inicial: inactivo
+      creature.energy = 100;  // Energía inicial
+    }
+
+    // Crear comida en posiciones aleatorias
+    for (let i = 0; i < 10; i++) {
+      let x = Phaser.Math.Between(100, 4000);
+      let y = Phaser.Math.Between(100, 4000);
+      foodGroup.create(x, y, 'food');
     }
   }
 
   function update() {
     creaturesGroup.getChildren().forEach(creature => {
-      if (creature.getData('target') === null) {
-        // Movimiento aleatorio de las criaturas
-        let randomDirection = Phaser.Math.Between(0, 3);
-        let targetX = creature.x;
-        let targetY = creature.y;
-
-        switch (randomDirection) {
-          case 0: targetX += 100; break;  // Mover a la derecha
-          case 1: targetX -= 100; break;  // Mover a la izquierda
-          case 2: targetY += 100; break;  // Mover abajo
-          case 3: targetY -= 100; break;  // Mover arriba
+      // Verificar si la criatura necesita comer o descansar
+      if (creature.energy < 20) {
+        creature.setData('state', 'resting');  // Necesita descansar
+      } else if (creature.getData('state') === 'idle') {
+        // Buscar comida si está inactiva
+        let nearestFood = findNearestFood(creature);
+        if (nearestFood) {
+          creature.setData('target', nearestFood);
+          creature.setData('state', 'moving');  // Empezar a moverse
         }
-
-        creature.setData('target', { x: targetX, y: targetY });
       }
 
       // Movimiento hacia el objetivo
@@ -118,12 +126,61 @@
         creature.setVelocityX(creature.speed * Math.cos(angle));
         creature.setVelocityY(creature.speed * Math.sin(angle));
 
-        // Si la criatura llega al objetivo, seleccionar un nuevo objetivo
+        // Si la criatura llega al objetivo
         if (Phaser.Math.Distance.Between(creature.x, creature.y, target.x, target.y) < 10) {
-          creature.setData('target', null);  // Resetear el objetivo
+          if (target.texture.key === 'food') {
+            // Comer
+            creature.energy = Math.min(creature.energy + 30, 100);
+            foodGroup.remove(target, true);  // Eliminar comida
+            creature.setData('state', 'idle');  // Volver a estado inactivo
+          } else if (target.texture.key === 'house') {
+            // Descansar en la casa
+            creature.energy = 100;  // Recargar energía
+            creature.setData('state', 'idle');  // Volver a estado inactivo
+          }
+          creature.setData('target', null);  // Resetear objetivo
+        }
+      }
+
+      // Si la criatura tiene poca energía y no hay comida cerca, buscar una casa
+      if (creature.energy < 20 && creature.getData('state') !== 'resting') {
+        let nearestHouse = findNearestHouse(creature);
+        if (nearestHouse) {
+          creature.setData('target', nearestHouse);
+          creature.setData('state', 'moving');
         }
       }
     });
+  }
+
+  // Función para encontrar la comida más cercana
+  function findNearestFood(creature) {
+    let closestDistance = Infinity;
+    let closestFood = null;
+    foodGroup.getChildren().forEach(food => {
+      let distance = Phaser.Math.Distance.Between(creature.x, creature.y, food.x, food.y);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestFood = food;
+      }
+    });
+    return closestFood;
+  }
+
+  // Función para encontrar la casa más cercana
+  function findNearestHouse(creature) {
+    let closestDistance = Infinity;
+    let closestHouse = null;
+    buildingsGroup.getChildren().forEach(building => {
+      if (building.texture.key === 'house') {
+        let distance = Phaser.Math.Distance.Between(creature.x, creature.y, building.x, building.y);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestHouse = building;
+        }
+      }
+    });
+    return closestHouse;
   }
 
 </script>
