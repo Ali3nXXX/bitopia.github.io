@@ -35,22 +35,27 @@
 
   let map;
   let camera;
+  let selectedBuilding = 'house';  // Edificio seleccionado (por defecto, una casa)
+  let buildingsGroup;  // Grupo para los edificios
 
   function preload() {
+    // Cargar imágenes para el mapa y edificios
     this.load.image('tile', 'https://labs.phaser.io/assets/sprites/platform.png');  // Suelo base
+    this.load.image('house', 'https://labs.phaser.io/assets/sprites/wood.png'); // Imagen de la casa
   }
 
   function create() {
     // Crear el mapa gigante de 4000x4000 píxeles
     map = this.add.tilemap();
     const tileset = map.addTilesetImage('tile');
-    
-    // Añadir el mapa a la escena
     map.createLayer(0, tileset, 0, 0).setScale(2);
 
     // Configurar la cámara
     camera = this.cameras.main;
     camera.setBounds(0, 0, 4000, 4000);  // Limitar el área visible
+
+    // Grupo para los edificios
+    buildingsGroup = this.physics.add.group();
 
     // Control de desplazamiento con las teclas (WASD o Flechas)
     this.input.keyboard.on('keydown-W', () => camera.scrollY -= 10);
@@ -66,6 +71,15 @@
         camera.zoom = Math.min(camera.zoom + zoomSpeed, 2);  // Limitar zoom máximo
       } else {
         camera.zoom = Math.max(camera.zoom - zoomSpeed, 0.5);  // Limitar zoom mínimo
+      }
+    });
+
+    // Control para construir edificios al hacer clic
+    this.input.on('pointerdown', function(pointer) {
+      if (selectedBuilding === 'house') {
+        // Colocar una casa en la posición donde el jugador hace clic
+        let building = buildingsGroup.create(pointer.x + camera.scrollX, pointer.y + camera.scrollY, 'house');
+        building.setOrigin(0.5, 0.5);
       }
     });
   }
